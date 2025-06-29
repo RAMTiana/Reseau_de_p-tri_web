@@ -1,22 +1,91 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Ascenseur - Réseau de Petri</title>
+    <meta charset="UTF-8" />
+    <title>Simulation Ascenseur - Réseau de Petri</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
-    <h1>État de l'ascenseur</h1>
-    <div id="state">
-        {% for key, val in state.items() %}
-            <p><strong>{{ key }}</strong> : {{ val }}</p>
-        {% endfor %}
+    <h1>Simulation Ascenseur – Réseau de Petri</h1>
+
+    <div class="petri-net" id="petri-net">
+        <div class="transition-buttons">
+            <button onclick="fire('CallElevator')">🚪 Appeler l'ascenseur</button>
+            <button onclick="fire('ArriveUp')">🛗 Arriver à l'étage</button>
+            <button onclick="fire('CloseDoor')">🚪 Fermer la porte</button>
+        </div>
     </div>
 
-    <button onclick="fire('CallElevator')">Appeler Ascenseur</button>
-    <button onclick="fire('ArriveUp')">Arrivée</button>
-    <button onclick="fire('CloseDoor')">Fermer Porte</button>
+    <div class="status" id="status"></div>
 
     <script>
+        let currentState = {{ state | tojson }};
+        const transitions = [
+            "CallElevator",
+            "ArriveUp",
+            "CloseDoor"
+        ];
+
+        async function isTransitionEnabled(transition) {
+            const response = await fetch('/enabled', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({transition})
+            });
+            const data = await response.json();
+            return data.enabled;
+        }
+
+        async function renderPetriNet() {
+            const container = document.getElementById('petri-net');
+            container.innerHTML = '';
+
+            container.appendChild(createPlaceElement("Idle", currentState.Idle));
+
+            const t0Enabled = await isTransitionEnabled("CallElevator");
+            container.appendChild(createTransitionElement("CallElevator", t0Enabled));
+
+            container.appendChild(createPlaceElement("MovingUp", currentState.MovingUp));
+
+            const t1Enabled = await isTransitionEnabled("ArriveUp");
+            container.appendChild(createTransitionElement("ArriveUp", t1Enabled));
+
+            container.appendChild(createPlaceElement("DoorOpen", currentState.DoorOpen));
+
+            const t2Enabled = await isTransitionEnabled("CloseDoor");
+            container.appendChild(createTransitionElement("CloseDoor", t2Enabled));
+        }
+
+        function createPlaceElement(name, tokens) {
+            const div = document.createElement('div');
+            div.classList.add('place');
+            if (tokens > 0) div.classList.add('active');
+
+            const token = document.createElement('div');
+            token.className = 'token-count';
+            token.textContent = tokens;
+
+            const label = document.createElement('div');
+            label.className = 'place-label';
+            label.textContent = name;
+
+            div.appendChild(token);
+            div.appendChild(label);
+            return div;
+        }
+
+        function createTransitionElement(name, enabled) {
+            const div = document.createElement('div');
+            div.classList.add('transition');
+            if (enabled) {
+                div.classList.add('enabled');
+                div.addEventListener('click', () => fire(name));
+            }
+            div.textContent = name;
+            return div;
+        }
+
         async function fire(transition) {
             const response = await fetch('/fire', {
                 method: 'POST',
@@ -24,9 +93,12 @@
                 body: JSON.stringify({transition})
             });
             const data = await response.json();
-            alert(data.result);
-            location.reload();
+            document.getElementById('status').textContent = data.result;
+            currentState = data.state;
+            await renderPetriNet();
         }
+
+        renderPetriNet();
     </script>
 </body>
 </html>
