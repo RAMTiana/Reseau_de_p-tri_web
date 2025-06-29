@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ascenseur - Réseau de Petri</title>
+</head>
+<body>
+    <h1>État de l'ascenseur</h1>
+    <div id="state">
+        {% for key, val in state.items() %}
+            <p><strong>{{ key }}</strong> : {{ val }}</p>
+        {% endfor %}
+    </div>
+
+    <button onclick="fire('CallElevator')">Appeler Ascenseur</button>
+    <button onclick="fire('ArriveUp')">Arrivée</button>
+    <button onclick="fire('CloseDoor')">Fermer Porte</button>
+
+    <script>
+        async function fire(transition) {
+            const response = await fetch('/fire', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({transition})
+            });
+            const data = await response.json();
+            alert(data.result);
+            location.reload();
+        }
+    </script>
+</body>
+</html>
